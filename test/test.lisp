@@ -558,7 +558,21 @@ the external format EXTERNAL-FORMAT."
         (format t "~&Illegal code points"))
       (want-encoding-error #(#x00 #x00 #x11 #x00) :utf-32le)
       (want-encoding-error #(#x00 #xd8) :utf-16le)
-      (want-encoding-error #(#xff #xdf) :utf-16le))
+      (want-encoding-error #(#xff #xdf) :utf-16le)
+      (when verbose
+        (format t "~&Low surrogates cannot be the first word of a surrogate pair"))
+      ;; The bug: decode.lisp incorrectly accepts low surrogates (#xdc00-#xdfff)
+      ;; as the first word. It should only accept high surrogates (#xd800-#xdbff).
+      ;; These tests verify that low surrogates followed by valid low surrogates
+      ;; are properly rejected (not incorrectly decoded as surrogate pairs).
+      (want-encoding-error #(#x00 #xdc #x00 #xdc) :utf-16le)
+      (want-encoding-error #(#x00 #xdc #xff #xdf) :utf-16le)
+      (want-encoding-error #(#xff #xdc #x00 #xdc) :utf-16le)
+      (want-encoding-error #(#x00 #xdd #x00 #xdd) :utf-16le)
+      (want-encoding-error #(#xff #xdf #xff #xdf) :utf-16le)
+      (want-encoding-error #(#xdc #x00 #xdc #x00) :utf-16be)
+      (want-encoding-error #(#xdf #xff #xdf #xff) :utf-16be)
+      (want-encoding-error #(#x00 #xdc #x41 #x00) :utf-16le))
     (macrolet ((want-encoding-error (input format)
                  `(with-expected-error (external-format-encoding-error)
                     (read-flexi-line* ,input ,format))))                 
